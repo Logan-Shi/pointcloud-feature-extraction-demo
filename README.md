@@ -1,10 +1,10 @@
 # Build
 
--- mkdir build
--- cd build
--- cmake ..
--- make
+> ```mkdir build```  
+> ```cd build```  
+> ```cmake ..```  
+> ```make```    
 
 # Usage
 
--- ./bin/interactive_icp model/monkey.ply 1
+> ```./bin/interactive_icp model/monkey.ply 1```  
