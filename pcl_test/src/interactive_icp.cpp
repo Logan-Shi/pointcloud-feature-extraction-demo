@@ -12,8 +12,7 @@ typedef pcl::PointCloud<PointT> PointCloudT;
 
 bool next_iteration = false;
 
-void
-print4x4Matrix (const Eigen::Matrix4d & matrix)
+void print4x4Matrix (const Eigen::Matrix4d & matrix)
 {
   printf ("Rotation matrix :\n");
   printf ("    | %6.3f %6.3f %6.3f | \n", matrix (0, 0), matrix (0, 1), matrix (0, 2));
@@ -23,16 +22,14 @@ print4x4Matrix (const Eigen::Matrix4d & matrix)
   printf ("t = < %6.3f, %6.3f, %6.3f >\n\n", matrix (0, 3), matrix (1, 3), matrix (2, 3));
 }
 
-void
-keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
+void keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
                        void* nothing)
 {
   if (event.getKeySym () == "space" && event.keyDown ())
     next_iteration = true;
 }
 
-int
-main (int argc,
+int main (int argc,
       char* argv[])
 {
   // The point clouds we will be using
@@ -63,6 +60,8 @@ main (int argc,
 
   pcl::console::TicToc time;
   time.tic ();
+
+  //Read PLYFile
   if (pcl::io::loadPLYFile (argv[1], *cloud_in) < 0)
   {
     PCL_ERROR ("Error loading cloud %s.\n", argv[1]);
