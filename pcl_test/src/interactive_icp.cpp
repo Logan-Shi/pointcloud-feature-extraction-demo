@@ -1,42 +1,8 @@
-#include <iostream>
-#include <string>
-
-#include <pcl/io/ply_io.h>
-#include <pcl/point_types.h>
-#include <pcl/registration/icp.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/console/time.h>   // TicToc
-
-typedef pcl::PointXYZ PointT;
-typedef pcl::PointCloud<PointT> PointCloudT;
-
-bool next_iteration = false;
-
-void print4x4Matrix (const Eigen::Matrix4d & matrix)
-{
-  printf ("Rotation matrix :\n");
-  printf ("    | %6.3f %6.3f %6.3f | \n", matrix (0, 0), matrix (0, 1), matrix (0, 2));
-  printf ("R = | %6.3f %6.3f %6.3f | \n", matrix (1, 0), matrix (1, 1), matrix (1, 2));
-  printf ("    | %6.3f %6.3f %6.3f | \n", matrix (2, 0), matrix (2, 1), matrix (2, 2));
-  printf ("Translation vector :\n");
-  printf ("t = < %6.3f, %6.3f, %6.3f >\n\n", matrix (0, 3), matrix (1, 3), matrix (2, 3));
-}
-
-void keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
-                       void* nothing)
-{
-  if (event.getKeySym () == "space" && event.keyDown ())
-    next_iteration = true;
-}
+#include <iterative_icp.h>
 
 int main (int argc,
       char* argv[])
 {
-  // The point clouds we will be using
-  PointCloudT::Ptr cloud_in (new PointCloudT);  // Original point cloud
-  PointCloudT::Ptr cloud_tr (new PointCloudT);  // Transformed point cloud
-  PointCloudT::Ptr cloud_icp (new PointCloudT);  // ICP output point cloud
-
   // Checking program arguments
   if (argc < 2)
   {
@@ -69,6 +35,26 @@ int main (int argc,
   }
   std::cout << "\nLoaded file " << argv[1] << " (" << cloud_in->size () << " points) in " << time.toc () << " ms\n" << std::endl;
 
+  //Crop box filtering
+  pcl::CropBox<PointT> box_filter(true); //crop out other points
+  Eigen::Vector4f box_center(0,
+                             -1,
+                             0,
+                             1.0);
+  double box_size = 2;
+  Eigen::Vector4f box_min(box_center(0) - box_size/2,
+                          box_center(1) - box_size/2,
+                          box_center(2) - box_size/2,
+                          1.0);
+  Eigen::Vector4f box_max(box_center(0) + box_size/2,
+                          box_center(1) + box_size/2,
+                          box_center(2) + box_size/2,
+                          1.0);
+  box_filter.setMin(box_min);
+  box_filter.setMax(box_max);
+  box_filter.setInputCloud(cloud_in);
+  box_filter.filter(*cloud_icp);
+
   // Defining a rotation matrix and translation vector
   Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity ();
 
@@ -87,7 +73,8 @@ int main (int argc,
   print4x4Matrix (transformation_matrix);
 
   // Executing the transformation
-  pcl::transformPointCloud (*cloud_in, *cloud_icp, transformation_matrix);
+  pcl::transformPointCloud (*cloud_icp, *cloud_icp, transformation_matrix);
+
   *cloud_tr = *cloud_icp;  // We backup cloud_icp into cloud_tr for later use
 
   // The Iterative Closest Point algorithm
@@ -142,6 +129,9 @@ int main (int argc,
   // Adding text descriptions in each viewport
   viewer.addText ("White: Original point cloud\nGreen: Matrix transformed point cloud", 10, 15, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "icp_info_1", v1);
   viewer.addText ("White: Original point cloud\nRed: ICP aligned point cloud", 10, 15, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "icp_info_2", v2);
+
+  viewer.addCube(box_min(0),box_max(0),box_min(1),box_max(1),box_min(2),box_max(2),1.0,0.0,0.0,"crop box",v1);
+  //viewer.addCoordinateSystem(1.0,0,0,0,"cloud_in",v1);
 
   std::stringstream ss;
   ss << iterations;
