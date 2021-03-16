@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <string>
 
 #include <pcl/io/ply_io.h>
@@ -12,6 +13,7 @@ typedef pcl::PointCloud<PointT> PointCloudT;
 
 bool next_iteration = false;
 bool save_tf = false;
+ofstream results;
 
 void
 print4x4Matrix (const Eigen::Matrix4d & matrix)
@@ -81,7 +83,6 @@ main (int argc,
     }
   }
   
-
   // Defining a rotation matrix and translation vector
   Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity ();
   *cloud_tr = *cloud_icp;  // We backup cloud_icp into cloud_tr for later use
@@ -149,6 +150,7 @@ main (int argc,
 
   // Set camera position and orientation
   viewer.setCameraPosition (0, 0, 200, 0, 0, 0, 0);
+  viewer.addCoordinateSystem(10);
   viewer.setSize (1280, 1024);  // Visualiser window size
 
   // Register keyboard callback :
@@ -192,7 +194,11 @@ main (int argc,
 
     if (save_tf)
     {
-      //TODO: print to result
+      results.open("result/test.txt", std::ios_base::app);
+      results << argv[2] << "need following transformation(in " << argv[1]<<" frame) to match " << argv[1]<<"-----------------\n";
+      results << "  Translation vector :\n";
+      results << transformation_matrix (0, 3) << ", " << transformation_matrix (1, 3) << ", " << transformation_matrix (2, 3)<<"\n";
+      results.close();
       std::cout<<"matching finished,exiting...\n";
       return(0);
     }
