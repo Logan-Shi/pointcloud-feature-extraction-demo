@@ -11,6 +11,7 @@ typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 
 bool next_iteration = false;
+bool save_tf = false;
 
 void
 print4x4Matrix (const Eigen::Matrix4d & matrix)
@@ -29,6 +30,9 @@ keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
 {
   if (event.getKeySym () == "space" && event.keyDown ())
     next_iteration = true;
+
+  if (event.getKeySym () == "s" && event.keyDown ())
+    save_tf = true;
 }
 
 int
@@ -80,26 +84,8 @@ main (int argc,
 
   // Defining a rotation matrix and translation vector
   Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity ();
-
-  // // A rotation matrix (see https://en.wikipedia.org/wiki/Rotation_matrix)
-  // double theta = M_PI / 8;  // The angle of rotation in radians
-  // transformation_matrix (0, 0) = std::cos (theta);
-  // transformation_matrix (0, 1) = -sin (theta);
-  // transformation_matrix (1, 0) = sin (theta);
-  // transformation_matrix (1, 1) = std::cos (theta);
-
-  // // A translation on Z axis (0.4 meters)
-  // transformation_matrix (2, 3) = 0.4;
-
-  // // Display in terminal the transformation matrix
-  // std::cout << "Applying this rigid transformation to: cloud_in -> cloud_icp" << std::endl;
-  // print4x4Matrix (transformation_matrix);
-
-  // Executing the transformation
-  // pcl::transformPointCloud (*cloud_in, *cloud_icp, transformation_matrix);
   *cloud_tr = *cloud_icp;  // We backup cloud_icp into cloud_tr for later use
 
-  
   // The Iterative Closest Point algorithm
   time.tic ();
   pcl::IterativeClosestPoint<PointT, PointT> icp;
@@ -162,7 +148,7 @@ main (int argc,
   viewer.setBackgroundColor (bckgr_gray_level, bckgr_gray_level, bckgr_gray_level, v2);
 
   // Set camera position and orientation
-  viewer.setCameraPosition (-3.68332, 2.94092, 5.71266, 0.289847, 0.921947, -0.256907, 0);
+  viewer.setCameraPosition (0, 0, 200, 0, 0, 0, 0);
   viewer.setSize (1280, 1024);  // Visualiser window size
 
   // Register keyboard callback :
@@ -203,6 +189,13 @@ main (int argc,
       }
     }
     next_iteration = false;
+
+    if (save_tf)
+    {
+      //TODO: print to result
+      std::cout<<"matching finished,exiting...\n";
+      return(0);
+    }
   }
   return (0);
 }
