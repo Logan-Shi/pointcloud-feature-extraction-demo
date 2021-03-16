@@ -1,15 +1,11 @@
 # Build
 
-> ```mkdir build```  
+> ```chmod +x install.bash```
 
-> ```cd build```  
-
-> ```cmake ..```  
-
-> ```make -j8```    
+>```./install.bash```
 
 # Usage
 
-> ```cd ..```
+> ```chmod +x run.bash```
 
-> ```./bin/interactive_icp model/test.ply model/1.ply 1```
+>```./run.bash```(need to set up shots number manually)
