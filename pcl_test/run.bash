@@ -1,6 +1,8 @@
 #!/bin/bash
-for num in {1..8..1}
+a = 0
+until [ ! $a -lt $1 ]
 do
-echo "running $num"
-./bin/interactive_icp model/test.ply model/$num.ply 1
+	a=`expr $a + 1`
+    echo "running model/$a.ply for $2 iterations"
+    ./bin/interactive_icp model/$a.ply $2
 done
