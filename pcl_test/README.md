@@ -8,4 +8,4 @@
 
 > ```chmod +x run.bash```
 
->```./run.bash```(need to set up shots number manually)
+>```./run.bash sample_num iterations```
