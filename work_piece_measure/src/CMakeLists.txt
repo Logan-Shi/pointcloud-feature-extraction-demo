@@ -7,7 +7,7 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable (interactive_icp ${SRC_LIST})
-target_link_libraries (interactive_icp ${PCL_LIBRARIES})
+add_executable (work_piece_measure ${SRC_LIST})
+target_link_libraries (work_piece_measure ${PCL_LIBRARIES})
 
 set (EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
