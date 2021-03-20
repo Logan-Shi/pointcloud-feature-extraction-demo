@@ -166,7 +166,7 @@ main (int argc,
   seg_circle.setModelType (pcl::SACMODEL_CIRCLE3D);
   seg_circle.setMethodType (pcl::SAC_RANSAC);
   seg_circle.setDistanceThreshold (0.01);
-  // seg_circle.setRadiusLimits(14, 16);
+  seg_circle.setRadiusLimits(1, 15);
   seg_circle.setMaxIterations (iterations);
 
   pcl::ExtractIndices<PointT> extract_circle;
@@ -207,8 +207,21 @@ main (int argc,
   pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_boundary_color_h (cloud_boundary, 20,180,20);
   viewer.addPointCloud (cloud_boundary, cloud_boundary_color_h, "cloud_boundary");
 
-  // viewer.addCircle(coefficients_circle);
-  viewer.addCoordinateSystem(10,coefficients_circle->values[0],coefficients_circle->values[1],coefficients_circle->values[2]);
+  pcl::ModelCoefficients cylinder_coeff;
+  double cylinder_length = 15;
+  cylinder_coeff.values.resize (7);    // We need 7 values
+  cylinder_coeff.values[0] = coefficients_circle->values[0];
+  cylinder_coeff.values[1] = coefficients_circle->values[1];
+  cylinder_coeff.values[2] = coefficients_circle->values[2];
+ 
+  cylinder_coeff.values[3] = cylinder_length*coefficients_circle->values[4];
+  cylinder_coeff.values[4] = cylinder_length*coefficients_circle->values[5];
+  cylinder_coeff.values[5] = cylinder_length*coefficients_circle->values[6];
+
+  cylinder_coeff.values[6] = coefficients_circle->values[3];
+ 
+  viewer.addCylinder (cylinder_coeff);
+  // viewer.addCoordinateSystem(10,coefficients_circle->values[0],coefficients_circle->values[1],coefficients_circle->values[2]);
 
   // Adding text descriptions in each viewport
   viewer.addText ("White: Original point cloud\nRed: Ransac Plane result\nGreen: Boundary result", 10, 10, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "ransac_info");
