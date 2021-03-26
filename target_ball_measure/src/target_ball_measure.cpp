@@ -154,11 +154,11 @@ main (int argc,
     if (save_tf)
     {
       results.open("result/test.txt", std::ios_base::app);
-      results << "sphere is positioned at: (in " << argv[1]<<" frame)\n";
-      results << "  Translation vector :\n";
-      results << sphere_coeff.values[0]<< ", " << sphere_coeff.values[1] << ", " << sphere_coeff.values[2]<<"\n";
+      // results << "sphere is positioned at: (in " << argv[1]<<" frame)\n";
+      // results << "  Translation vector :\n";
+      results << sphere_coeff.values[0]<< ", " << sphere_coeff.values[1] << ", " << sphere_coeff.values[2]<<";\n";
       results.close();
-      std::cout<<"matching finished,exiting...\n";
+      // std::cout<<"matching finished,exiting...\n";
       return(0);
     }
   }

@@ -28,6 +28,13 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/features/boundary.h>
 
+#include <pcl/search/impl/search.hpp>
+#ifndef PCL_NO_PRECOMPILE
+#include <pcl/impl/instantiate.hpp>
+#include <pcl/point_types.h>
+PCL_INSTANTIATE(Search, PCL_POINT_TYPES)
+#endif // PCL_NO_PRECOMPILE
+
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 typedef pcl::PointNormal PointNT;
@@ -262,9 +269,9 @@ main (int argc,
     if (save_tf)
     {
       results.open("result/test.txt", std::ios_base::app);
-      results << "circle is positioned at: (in " << argv[1]<<" frame)\n";
-      results << "  Translation vector :\n";
-      results << coefficients_circle->values[0]<< ", " << coefficients_circle->values[1] << ", " << coefficients_circle->values[2]<<"\n";
+      // results << "circle is positioned at: (in " << argv[1]<<" frame)\n";
+      // results << "  Translation vector :\n";
+      results << coefficients_circle->values[0]<< ", " << coefficients_circle->values[1] << ", " << coefficients_circle->values[2]<<";\n";
       results.close();
       std::cout<<"matching finished,exiting...\n";
       return(0);
