@@ -8,4 +8,4 @@
 
 > ```chmod +x run.bash```
 
->```./run.bash sample_num iterations```
+>```./run.bash sample_num iterations radius_min radius_max z_max z_min```

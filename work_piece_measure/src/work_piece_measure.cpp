@@ -104,6 +104,20 @@ main (int argc,
     // threshold = atoi(argv[3]);
   }
 
+  // PointCloudT::Ptr cloud_filtered (new PointCloudT);
+  // double bnd = 500;
+
+  double z_min = atoi(argv[5]);
+  double z_max = atoi(argv[6]);
+  pcl::ConditionAnd<PointT>::Ptr range_cond(new pcl::ConditionAnd<PointT> ());
+  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::GT,z_min)));
+  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::LT,z_max)));
+  pcl::ConditionalRemoval<PointT> condrem;
+  condrem.setCondition(range_cond);
+  condrem.setInputCloud(cloud_in);
+  condrem.setKeepOrganized(false);
+  condrem.filter(*cloud_in);
+
   // Create the segmentation object
   pcl::SACSegmentation<PointT> seg;
   // Optional
@@ -173,7 +187,9 @@ main (int argc,
   seg_circle.setModelType (pcl::SACMODEL_CIRCLE3D);
   seg_circle.setMethodType (pcl::SAC_RANSAC);
   seg_circle.setDistanceThreshold (0.01);
-  seg_circle.setRadiusLimits(1, 15);
+  double radius_min = atoi(argv[3]);
+  double radius_max = atoi(argv[4]);
+  seg_circle.setRadiusLimits(radius_min, radius_max);
   seg_circle.setMaxIterations (iterations);
 
   pcl::ExtractIndices<PointT> extract_circle;
