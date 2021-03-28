@@ -50,6 +50,9 @@ double buffer = 0.5;
 double z_min = -500;
 double z_max = 500;
 double threshold = 0.01;
+double radius_search_small = 0.5;
+double radius_search_large = 0.5;
+double angle_threshold = 4;
 
 void
 print4x4Matrix (const Eigen::Matrix4d & matrix)
@@ -74,6 +77,7 @@ keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
 }
 
 double ransac_circle(PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold);
+void calc_boundary(const PointCloudT::Ptr cloud_p, PointCloudT::Ptr cloud_boundary,double,double,double);
 
 int
 main (int argc,
@@ -108,12 +112,18 @@ main (int argc,
     z_min = std::stod(argv[5]);
     z_max = std::stod(argv[6]);
     threshold = std::stod(argv[7]);
+    radius_search_small = std::stod(argv[8]);
+    radius_search_large = std::stod(argv[9]);
+    angle_threshold = std::stod(argv[10]);
     std::cout<<"iterations: "<<iterations<<"\n";
     std::cout<<"diameter: "<<diameter<<"\n";
     std::cout<<"buffer: "<<buffer<<"\n";
     std::cout<<"z_min: "<<z_min<<"\n";
     std::cout<<"z_max: "<<z_max<<"\n";
     std::cout<<"threshold: "<<threshold<<"\n";
+    std::cout<<"radius_search_small: "<<radius_search_small<<"\n";
+    std::cout<<"radius_search_large: "<<radius_search_large<<"\n";
+    std::cout<<"angle_threshold: "<<angle_threshold<<"\n";
     if (iterations < 1)
     {
       PCL_ERROR ("Number of initial iterations must be >= 1.\n");
@@ -166,34 +176,8 @@ main (int argc,
 
   double pencentage = double(inliers->indices.size())/cloud_in->size();
 
-  // Boundary
-  pcl::PointCloud<pcl::Boundary> boundaries; 
-  pcl::BoundaryEstimation<PointT, PointNT, pcl::Boundary> boundEst; 
-  pcl::NormalEstimation<PointT, PointNT> normEst; 
-  PointCloudNT::Ptr normals(new PointCloudNT); 
-  PointCloudT::Ptr cloud_boundary (new PointCloudT); 
-  normEst.setInputCloud(cloud_p); 
-  normEst.setRadiusSearch(0.5); 
-  pcl_timer.tic();
-  normEst.compute(*normals); 
-  std::cout << "Calculated normals in " << pcl_timer.toc () << " ms" << std::endl;
- 
-  boundEst.setInputCloud(cloud_p); 
-  boundEst.setInputNormals(normals); 
-  boundEst.setRadiusSearch(1.5); 
-  boundEst.setAngleThreshold(M_PI/4); 
-  boundEst.setSearchMethod(pcl::search::KdTree<PointT>::Ptr (new pcl::search::KdTree<PointT>)); 
-  pcl_timer.tic();
-  boundEst.compute(boundaries); 
-  std::cout << "Calculated boundaries in " << pcl_timer.toc () << " ms" << std::endl;
- 
-  for(int i = 0; i < cloud_p->points.size(); i++) 
-  {
-    if(boundaries[i].boundary_point > 0) 
-    { 
-      cloud_boundary->push_back(cloud_p->points[i]); 
-    }
-  }
+  PointCloudT::Ptr cloud_boundary (new PointCloudT);
+  calc_boundary(cloud_p, cloud_boundary, radius_search_small,radius_search_large,angle_threshold);
 
   pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
   ransac_circle(cloud_boundary, coefficients_circle, diameter, buffer, threshold);
@@ -324,4 +308,34 @@ double ransac_circle(PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Pt
   std::cout<<"circle radius: "<<coefficients_circle->values[3]<<"\n";
   return pencentage;
 }
-  
+
+void calc_boundary(const PointCloudT::Ptr cloud_p, PointCloudT::Ptr cloud_boundary, double radius_search_small, double radius_search_large, double angle_threshold)
+{
+  // Boundary
+  pcl::PointCloud<pcl::Boundary> boundaries; 
+  pcl::BoundaryEstimation<PointT, PointNT, pcl::Boundary> boundEst; 
+  pcl::NormalEstimation<PointT, PointNT> normEst; 
+  PointCloudNT::Ptr normals(new PointCloudNT); 
+  normEst.setInputCloud(cloud_p); 
+  normEst.setRadiusSearch(radius_search_small); 
+  pcl_timer.tic();
+  normEst.compute(*normals); 
+  std::cout << "Calculated normals in " << pcl_timer.toc () << " ms" << std::endl;
+ 
+  boundEst.setInputCloud(cloud_p);
+  boundEst.setInputNormals(normals);
+  boundEst.setRadiusSearch(radius_search_large); 
+  boundEst.setAngleThreshold(M_PI/angle_threshold); 
+  boundEst.setSearchMethod(pcl::search::KdTree<PointT>::Ptr (new pcl::search::KdTree<PointT>)); 
+  pcl_timer.tic();
+  boundEst.compute(boundaries); 
+  std::cout << "Calculated boundaries in " << pcl_timer.toc () << " ms" << std::endl;
+ 
+  for(int i = 0; i < cloud_p->points.size(); i++) 
+  {
+    if(boundaries[i].boundary_point > 0) 
+    { 
+      cloud_boundary->push_back(cloud_p->points[i]); 
+    }
+  }
+}
