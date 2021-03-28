@@ -43,6 +43,13 @@ typedef pcl::PointCloud<PointNT> PointCloudNT;
 bool next_iteration = false;
 bool save_tf = false;
 ofstream results;
+pcl::console::TicToc pcl_timer;
+int iterations = 1;
+double diameter = 4;
+double buffer = 0.5;
+double z_min = -500;
+double z_max = 500;
+double threshold = 0.01;
 
 void
 print4x4Matrix (const Eigen::Matrix4d & matrix)
@@ -66,6 +73,8 @@ keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
     save_tf = true;
 }
 
+double ransac_circle(PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold);
+
 int
 main (int argc,
       char* argv[])
@@ -82,20 +91,29 @@ main (int argc,
     return (-1);
   }
 
-  pcl::console::TicToc time;
-  time.tic ();
+  pcl_timer.tic ();
   if (pcl::io::loadPLYFile (argv[1], *cloud_in) < 0)
   {
     PCL_ERROR ("Error loading cloud %s.\n", argv[1]);
     return (-1);
   }
-  std::cout << "\nLoaded file " << argv[1] << " (" << cloud_in->size () << " points) in " << time.toc () << " ms" << std::endl;
+  std::cout << "\nLoaded file " << argv[1] << " (" << cloud_in->size () << " points) in " << pcl_timer.toc () << " ms" << std::endl;
 
   // double threshold = 0.01;
-  int iterations = 1;
   if (argc > 2)
   {
     iterations = atoi(argv[2]);
+    diameter = std::stod(argv[3]);
+    buffer = std::stod(argv[4]);
+    z_min = std::stod(argv[5]);
+    z_max = std::stod(argv[6]);
+    threshold = std::stod(argv[7]);
+    std::cout<<"iterations: "<<iterations<<"\n";
+    std::cout<<"diameter: "<<diameter<<"\n";
+    std::cout<<"buffer: "<<buffer<<"\n";
+    std::cout<<"z_min: "<<z_min<<"\n";
+    std::cout<<"z_max: "<<z_max<<"\n";
+    std::cout<<"threshold: "<<threshold<<"\n";
     if (iterations < 1)
     {
       PCL_ERROR ("Number of initial iterations must be >= 1.\n");
@@ -107,8 +125,6 @@ main (int argc,
   // PointCloudT::Ptr cloud_filtered (new PointCloudT);
   // double bnd = 500;
 
-  double z_min = atoi(argv[5]);
-  double z_max = atoi(argv[6]);
   pcl::ConditionAnd<PointT>::Ptr range_cond(new pcl::ConditionAnd<PointT> ());
   range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::GT,z_min)));
   range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::LT,z_max)));
@@ -134,7 +150,7 @@ main (int argc,
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
   
-  time.tic ();
+  pcl_timer.tic ();
   seg.segment (*inliers, *coefficients);
   if (inliers->indices.size() == 0 )
   {
@@ -145,7 +161,7 @@ main (int argc,
   extract.setNegative(false);
   PointCloudT::Ptr cloud_p (new PointCloudT);  // Plane point cloud
   extract.filter(*cloud_p);
-  std::cout << "Applied "<<std::to_string(iterations) << " plane ransac iterations in " << time.toc () << " ms" << std::endl;
+  std::cout << "Applied "<<std::to_string(iterations) << " plane ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
   std::cout << "Plane size:  "<<std::to_string(inliers->indices.size()) <<"" << std::endl;
 
   double pencentage = double(inliers->indices.size())/cloud_in->size();
@@ -158,18 +174,18 @@ main (int argc,
   PointCloudT::Ptr cloud_boundary (new PointCloudT); 
   normEst.setInputCloud(cloud_p); 
   normEst.setRadiusSearch(0.5); 
-  time.tic();
+  pcl_timer.tic();
   normEst.compute(*normals); 
-  std::cout << "Calculated normals in " << time.toc () << " ms" << std::endl;
+  std::cout << "Calculated normals in " << pcl_timer.toc () << " ms" << std::endl;
  
   boundEst.setInputCloud(cloud_p); 
   boundEst.setInputNormals(normals); 
   boundEst.setRadiusSearch(1.5); 
   boundEst.setAngleThreshold(M_PI/4); 
   boundEst.setSearchMethod(pcl::search::KdTree<PointT>::Ptr (new pcl::search::KdTree<PointT>)); 
-  time.tic();
+  pcl_timer.tic();
   boundEst.compute(boundaries); 
-  std::cout << "Calculated boundaries in " << time.toc () << " ms" << std::endl;
+  std::cout << "Calculated boundaries in " << pcl_timer.toc () << " ms" << std::endl;
  
   for(int i = 0; i < cloud_p->points.size(); i++) 
   {
@@ -179,39 +195,8 @@ main (int argc,
     }
   }
 
-  // Create the segmentation object
-  pcl::SACSegmentation<PointT> seg_circle;
-  // Optional
-  seg_circle.setOptimizeCoefficients (true);
-  // Mandatory
-  seg_circle.setModelType (pcl::SACMODEL_CIRCLE3D);
-  seg_circle.setMethodType (pcl::SAC_RANSAC);
-  seg_circle.setDistanceThreshold (0.01);
-  double radius_min = atoi(argv[3]);
-  double radius_max = atoi(argv[4]);
-  seg_circle.setRadiusLimits(radius_min, radius_max);
-  seg_circle.setMaxIterations (iterations);
-
-  pcl::ExtractIndices<PointT> extract_circle;
-  seg_circle.setInputCloud (cloud_boundary);
   pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers_circle (new pcl::PointIndices);
-  
-  time.tic ();
-  seg_circle.segment (*inliers_circle, *coefficients_circle);
-  // if (inliers_circle->indices.size() == 0 )
-  // {
-  //   PCL_ERROR("\n can not extract circle from given boundaries\n");
-  // }
-  // extract_circle.setInputCloud(cloud_boundary);
-  // extract_circle.setIndices(inliers_circle);
-  // extract_circle.setNegative(false);
-  // PointCloudT::Ptr cloud_circle (new PointCloudT);  // Plane point cloud
-  // extract_circle.filter(*cloud_circle);
-  std::cout << "Applied "<<std::to_string(iterations) << " circle ransac iterations in " << time.toc () << " ms" << std::endl;
-  // std::cout << "Circle size:  "<<std::to_string(inliers_circle->indices.size()) <<"" << std::endl;
-
-  // double pencentage = double(inliers_circle->indices.size())/cloud_boundary->size();
+  ransac_circle(cloud_boundary, coefficients_circle, diameter, buffer, threshold);
 
   // Visualization
   pcl::visualization::PCLVisualizer viewer ("RANSAC demo");
@@ -295,3 +280,48 @@ main (int argc,
   }
   return (0);
 }
+
+double ransac_circle(PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold)
+{
+  std::cout << "input size:  "<<std::to_string(cloud_boundary->size()) <<"" << std::endl;
+  // Create the segmentation object
+  pcl::SACSegmentation<PointT> seg_circle;
+  // Optional
+  seg_circle.setOptimizeCoefficients (true);
+  // Mandatory
+  seg_circle.setModelType (pcl::SACMODEL_CIRCLE3D);
+  seg_circle.setMethodType (pcl::SAC_RANSAC);
+  seg_circle.setDistanceThreshold (threshold);
+  double radius_min = (diameter-buffer)/2;
+  double radius_max = (diameter+buffer)/2;
+  std::cout<<"radius_min: "<<radius_min<<"\n";
+  std::cout<<"radius_max: "<<radius_max<<"\n";
+  seg_circle.setRadiusLimits(radius_min, radius_max);
+  seg_circle.setMaxIterations (iterations);
+
+  pcl::ExtractIndices<PointT> extract_circle;
+  seg_circle.setInputCloud (cloud_boundary);
+  // pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
+  pcl::PointIndices::Ptr inliers_circle (new pcl::PointIndices);
+  
+  pcl_timer.tic ();
+  seg_circle.segment (*inliers_circle, *coefficients_circle);
+  // if (inliers_circle->indices.size() == 0 )
+  // {
+  //   PCL_ERROR("\n can not extract circle from given boundaries\n");
+  // }
+  // extract_circle.setInputCloud(cloud_boundary);
+  // extract_circle.setIndices(inliers_circle);
+  // extract_circle.setNegative(false);
+  // PointCloudT::Ptr cloud_circle (new PointCloudT);  // Plane point cloud
+  // extract_circle.filter(*cloud_circle);
+  std::cout << "Applied "<<std::to_string(iterations) << " circle ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
+  std::cout << "Circle size:  "<<std::to_string(inliers_circle->indices.size()) <<"" << std::endl;
+
+  double pencentage = double(inliers_circle->indices.size())/cloud_boundary->size();
+
+  std::cout<<"circle percentage: "<<pencentage<<"\n";
+  std::cout<<"circle radius: "<<coefficients_circle->values[3]<<"\n";
+  return pencentage;
+}
+  
