@@ -1,91 +1,8 @@
-#include <iostream>
-#include <fstream>
-#include <string>
+#include <workpiece_measure.h>
 
-#include <pcl/io/ply_io.h>
-#include <pcl/point_types.h>
-#include <pcl/registration/icp.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/console/time.h>   // TicToc
-
-#include <pcl/ModelCoefficients.h>
-
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-
-#include <pcl/filters/extract_indices.h>
-#include <pcl/features/don.h>
-
-#include <pcl/search/organized.h>
-#include <pcl/search/kdtree.h>
-
-#include <pcl/features/normal_3d.h>
-#include <pcl/filters/conditional_removal.h>
-
-#include <pcl/filters/covariance_sampling.h>
-#include <pcl/filters/normal_space.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/features/boundary.h>
-
-#include <pcl/search/impl/search.hpp>
-#ifndef PCL_NO_PRECOMPILE
-#include <pcl/impl/instantiate.hpp>
-#include <pcl/point_types.h>
-PCL_INSTANTIATE(Search, PCL_POINT_TYPES)
-#endif // PCL_NO_PRECOMPILE
-
-typedef pcl::PointXYZ PointT;
-typedef pcl::PointCloud<PointT> PointCloudT;
-typedef pcl::PointNormal PointNT;
-typedef pcl::PointCloud<PointNT> PointCloudNT;
-
-bool next_iteration = false;
-bool save_tf = false;
-ofstream results;
-pcl::console::TicToc pcl_timer;
-int iterations = 1;
-double diameter = 4;
-double buffer = 0.5;
-double z_min = -500;
-double z_max = 500;
-double threshold = 0.01;
-double radius_search_small = 0.5;
-double radius_search_large = 0.5;
-double angle_threshold = 4;
-
-void
-print4x4Matrix (const Eigen::Matrix4d & matrix)
+int main (int argc, char* argv[])
 {
-  printf ("Rotation matrix :\n");
-  printf ("    | %6.3f %6.3f %6.3f | \n", matrix (0, 0), matrix (0, 1), matrix (0, 2));
-  printf ("R = | %6.3f %6.3f %6.3f | \n", matrix (1, 0), matrix (1, 1), matrix (1, 2));
-  printf ("    | %6.3f %6.3f %6.3f | \n", matrix (2, 0), matrix (2, 1), matrix (2, 2));
-  printf ("Translation vector :\n");
-  printf ("t = < %6.3f, %6.3f, %6.3f >\n\n", matrix (0, 3), matrix (1, 3), matrix (2, 3));
-}
-
-void
-keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
-                       void* nothing)
-{
-  if (event.getKeySym () == "space" && event.keyDown ())
-    next_iteration = true;
-
-  if (event.getKeySym () == "s" && event.keyDown ())
-    save_tf = true;
-}
-
-double ransac_circle(PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold);
-void calc_boundary(const PointCloudT::Ptr cloud_p, PointCloudT::Ptr cloud_boundary,double,double,double);
-
-int
-main (int argc,
-      char* argv[])
-{
-  // The point clouds we will be using
   PointCloudT::Ptr cloud_in (new PointCloudT);  // Original point cloud
-
   // Checking program arguments
   if (argc < 2)
   {
@@ -129,62 +46,17 @@ main (int argc,
       PCL_ERROR ("Number of initial iterations must be >= 1.\n");
       return (-1);
     }
-    // threshold = atoi(argv[3]);
   }
-
-  // PointCloudT::Ptr cloud_filtered (new PointCloudT);
-  // double bnd = 500;
-
-  pcl::ConditionAnd<PointT>::Ptr range_cond(new pcl::ConditionAnd<PointT> ());
-  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::GT,z_min)));
-  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::LT,z_max)));
-  pcl::ConditionalRemoval<PointT> condrem;
-  condrem.setCondition(range_cond);
-  condrem.setInputCloud(cloud_in);
-  condrem.setKeepOrganized(false);
-  condrem.filter(*cloud_in);
-
-  // Create the segmentation object
-  pcl::SACSegmentation<PointT> seg;
-  // Optional
-  seg.setOptimizeCoefficients (true);
-  // Mandatory
-  seg.setModelType (pcl::SACMODEL_PLANE);
-  seg.setMethodType (pcl::SAC_RANSAC);
-  seg.setDistanceThreshold (0.01);
-  // seg.setRadiusLimits(14, 16);
-  seg.setMaxIterations (iterations);
-
-  pcl::ExtractIndices<PointT> extract;
-  seg.setInputCloud (cloud_in);
-  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-  
-  pcl_timer.tic ();
-  seg.segment (*inliers, *coefficients);
-  if (inliers->indices.size() == 0 )
-  {
-    PCL_ERROR("\n can not extract plane from given data: %s\n", argv[1]);
-  }
-  extract.setInputCloud(cloud_in);
-  extract.setIndices(inliers);
-  extract.setNegative(false);
-  PointCloudT::Ptr cloud_p (new PointCloudT);  // Plane point cloud
-  extract.filter(*cloud_p);
-  std::cout << "Applied "<<std::to_string(iterations) << " plane ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
-  std::cout << "Plane size:  "<<std::to_string(inliers->indices.size()) <<"" << std::endl;
-
-  double pencentage = double(inliers->indices.size())/cloud_in->size();
+  // ---------------------------------------------------------------------------------------------------------
+  PointCloudT::Ptr cloud_p (new PointCloudT);
+  calc_plane(cloud_in, cloud_p, z_min, z_max);
 
   PointCloudT::Ptr cloud_boundary (new PointCloudT);
   calc_boundary(cloud_p, cloud_boundary, radius_search_small,radius_search_large,angle_threshold);
 
   pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
-  ransac_circle(cloud_boundary, coefficients_circle, diameter, buffer, threshold);
-
-  // Visualization
-  pcl::visualization::PCLVisualizer viewer ("RANSAC demo");
-
+  calc_circle(cloud_boundary, coefficients_circle, diameter, buffer, threshold);
+  // ---------------------------------------------------------------------------------------------------------
   // The color we will be using
   float bckgr_gray_level = 0.0;  // Black
   float txt_gray_lvl = 1.0 - bckgr_gray_level;
@@ -223,7 +95,7 @@ main (int argc,
   // std::string iterations_cnt = "RANSAC iterations = " + ss.str ();
   // viewer.addText (iterations_cnt, 10, 50, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "iterations_cnt");
   // viewer.addText ("target ball radius: " + std::to_string(coefficients->values[3])+"\n", 10, 70, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "radius");
-  // viewer.addText ("Pencentage of inliers: " + std::to_string(pencentage) + "\n", 10, 90, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "inliers pencentage");
+  // viewer.addText ("Percentage of inliers: " + std::to_string(percentage) + "\n", 10, 90, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "inliers percentage");
 
   viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud_boundary");
   viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY,0.5,"cloud_in");
@@ -265,7 +137,7 @@ main (int argc,
   return (0);
 }
 
-double ransac_circle(PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold)
+double calc_circle(const PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold)
 {
   std::cout << "input size:  "<<std::to_string(cloud_boundary->size()) <<"" << std::endl;
   // Create the segmentation object
@@ -302,11 +174,11 @@ double ransac_circle(PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Pt
   std::cout << "Applied "<<std::to_string(iterations) << " circle ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
   std::cout << "Circle size:  "<<std::to_string(inliers_circle->indices.size()) <<"" << std::endl;
 
-  double pencentage = double(inliers_circle->indices.size())/cloud_boundary->size();
+  double percentage = double(inliers_circle->indices.size())/cloud_boundary->size();
 
-  std::cout<<"circle percentage: "<<pencentage<<"\n";
+  std::cout<<"circle percentage: "<<percentage<<"\n";
   std::cout<<"circle radius: "<<coefficients_circle->values[3]<<"\n";
-  return pencentage;
+  return percentage;
 }
 
 void calc_boundary(const PointCloudT::Ptr cloud_p, PointCloudT::Ptr cloud_boundary, double radius_search_small, double radius_search_large, double angle_threshold)
@@ -338,4 +210,51 @@ void calc_boundary(const PointCloudT::Ptr cloud_p, PointCloudT::Ptr cloud_bounda
       cloud_boundary->push_back(cloud_p->points[i]); 
     }
   }
+}
+
+double calc_plane(const PointCloudT::Ptr cloud_in, PointCloudT::Ptr cloud_p,double z_min,double z_max)
+{
+  double percentage = 0;
+  PointCloudT::Ptr cloud_filtered (new PointCloudT);
+  pcl::ConditionAnd<PointT>::Ptr range_cond(new pcl::ConditionAnd<PointT> ());
+  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::GT,z_min)));
+  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::LT,z_max)));
+  pcl::ConditionalRemoval<PointT> condrem;
+  condrem.setCondition(range_cond);
+  condrem.setInputCloud(cloud_in);
+  condrem.setKeepOrganized(false);
+  condrem.filter(*cloud_filtered);
+
+  // Create the segmentation object
+  pcl::SACSegmentation<PointT> seg;
+  // Optional
+  seg.setOptimizeCoefficients (true);
+  // Mandatory
+  seg.setModelType (pcl::SACMODEL_PLANE);
+  seg.setMethodType (pcl::SAC_RANSAC);
+  seg.setDistanceThreshold (0.01);
+  // seg.setRadiusLimits(14, 16);
+  seg.setMaxIterations (iterations);
+
+  pcl::ExtractIndices<PointT> extract;
+  seg.setInputCloud (cloud_filtered);
+  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+  
+  pcl_timer.tic ();
+  seg.segment (*inliers, *coefficients);
+  if (inliers->indices.size() == 0 )
+  {
+    return percentage;
+  }
+  extract.setInputCloud(cloud_filtered);
+  extract.setIndices(inliers);
+  extract.setNegative(false);
+  
+  extract.filter(*cloud_p);
+  std::cout << "Applied "<<std::to_string(iterations) << " plane ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
+  std::cout << "Plane size:  "<<std::to_string(inliers->indices.size()) <<"" << std::endl;
+
+  percentage = double(inliers->indices.size())/cloud_filtered->size();
+  return percentage;
 }
