@@ -1,3 +1,5 @@
+#ifndef WORKPIECE_MEASURE_H
+#define WORKPIECE_MEASURE_H
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -15,6 +17,7 @@
 #include <pcl/segmentation/sac_segmentation.h>
 
 #include <pcl/filters/extract_indices.h>
+#include <pcl/filters/crop_box.h>
 #include <pcl/features/don.h>
 
 #include <pcl/search/organized.h>
@@ -40,32 +43,9 @@ typedef pcl::PointCloud<PointT> PointCloudT;
 typedef pcl::PointNormal PointNT;
 typedef pcl::PointCloud<PointNT> PointCloudNT;
 
-bool next_iteration = false;
-bool save_tf = false;
-ofstream results;
-pcl::console::TicToc pcl_timer;
-int iterations = 1;
-double diameter = 4;
-double buffer = 0.5;
-double z_min = -500;
-double z_max = 500;
-double threshold = 0.01;
-double radius_search_small = 0.5;
-double radius_search_large = 0.5;
-double angle_threshold = 4;
-pcl::visualization::PCLVisualizer viewer ("RANSAC demo");
-
-void
-keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
-                       void* nothing)
-{
-  if (event.getKeySym () == "space" && event.keyDown ())
-    next_iteration = true;
-
-  if (event.getKeySym () == "s" && event.keyDown ())
-    save_tf = true;
-}
-
-double calc_circle(const PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold);
+double calc_circle(const PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double percentage, double diameter, double buffer, double threshold, int iterations);
 void calc_boundary(const PointCloudT::Ptr cloud_p, PointCloudT::Ptr cloud_boundary,double,double,double);
-double calc_plane(const PointCloudT::Ptr cloud_in, PointCloudT::Ptr cloud_p,double z_min,double z_max);
+double calc_plane(const PointCloudT::Ptr cloud_in, PointCloudT::Ptr cloud_p,double z_min,double z_max, int iterations);
+PointCloudT::Ptr crop_box(const PointCloudT::Ptr cloud_in, double box_size);
+
+#endif

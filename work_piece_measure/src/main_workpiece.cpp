@@ -1,4 +1,30 @@
 #include <workpiece_measure.h>
+pcl::visualization::PCLVisualizer viewer ("RANSAC demo");
+
+bool next_iteration = false;
+bool save_tf = false;
+ofstream results;
+pcl::console::TicToc pcl_timer;
+int iterations = 1;
+double diameter = 4;
+double buffer = 0.5;
+double z_min = -500;
+double z_max = 500;
+double threshold = 0.01;
+double radius_search_small = 0.5;
+double radius_search_large = 0.5;
+double angle_threshold = 4;
+
+void
+keyboardEventOccurred (const pcl::visualization::KeyboardEvent& event,
+                       void* nothing)
+{
+  if (event.getKeySym () == "space" && event.keyDown ())
+    next_iteration = true;
+
+  if (event.getKeySym () == "s" && event.keyDown ())
+    save_tf = true;
+}
 
 int main (int argc, char* argv[])
 {
@@ -49,13 +75,19 @@ int main (int argc, char* argv[])
   }
   // ---------------------------------------------------------------------------------------------------------
   PointCloudT::Ptr cloud_p (new PointCloudT);
-  calc_plane(cloud_in, cloud_p, z_min, z_max);
+  calc_plane(cloud_in, cloud_p, z_min, z_max,iterations);
 
   PointCloudT::Ptr cloud_boundary (new PointCloudT);
   calc_boundary(cloud_p, cloud_boundary, radius_search_small,radius_search_large,angle_threshold);
 
+  double percentage = 0;
   pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
-  calc_circle(cloud_boundary, coefficients_circle, diameter, buffer, threshold);
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 4, buffer, threshold,iterations);
+  std::cout<<"percentage: "<<percentage<<"\n";
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 9, buffer, threshold,iterations);
+  std::cout<<"percentage: "<<percentage<<"\n";
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 26, buffer, threshold,iterations);
+  std::cout<<"percentage: "<<percentage<<"\n";
   // ---------------------------------------------------------------------------------------------------------
   // The color we will be using
   float bckgr_gray_level = 0.0;  // Black
@@ -94,7 +126,7 @@ int main (int argc, char* argv[])
   // ss << iterations;
   // std::string iterations_cnt = "RANSAC iterations = " + ss.str ();
   // viewer.addText (iterations_cnt, 10, 50, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "iterations_cnt");
-  // viewer.addText ("target ball radius: " + std::to_string(coefficients->values[3])+"\n", 10, 70, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "radius");
+  viewer.addText ("target ball radius: " + std::to_string(coefficients_circle->values[3])+"\n", 10, 70, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "radius");
   // viewer.addText ("Percentage of inliers: " + std::to_string(percentage) + "\n", 10, 90, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "inliers percentage");
 
   viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud_boundary");
@@ -135,126 +167,4 @@ int main (int argc, char* argv[])
     }
   }
   return (0);
-}
-
-double calc_circle(const PointCloudT::Ptr cloud_boundary, pcl::ModelCoefficients::Ptr coefficients_circle, double diameter, double buffer, double threshold)
-{
-  std::cout << "input size:  "<<std::to_string(cloud_boundary->size()) <<"" << std::endl;
-  // Create the segmentation object
-  pcl::SACSegmentation<PointT> seg_circle;
-  // Optional
-  seg_circle.setOptimizeCoefficients (true);
-  // Mandatory
-  seg_circle.setModelType (pcl::SACMODEL_CIRCLE3D);
-  seg_circle.setMethodType (pcl::SAC_RANSAC);
-  seg_circle.setDistanceThreshold (threshold);
-  double radius_min = (diameter-buffer)/2;
-  double radius_max = (diameter+buffer)/2;
-  std::cout<<"radius_min: "<<radius_min<<"\n";
-  std::cout<<"radius_max: "<<radius_max<<"\n";
-  seg_circle.setRadiusLimits(radius_min, radius_max);
-  seg_circle.setMaxIterations (iterations);
-
-  pcl::ExtractIndices<PointT> extract_circle;
-  seg_circle.setInputCloud (cloud_boundary);
-  // pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers_circle (new pcl::PointIndices);
-  
-  pcl_timer.tic ();
-  seg_circle.segment (*inliers_circle, *coefficients_circle);
-  // if (inliers_circle->indices.size() == 0 )
-  // {
-  //   PCL_ERROR("\n can not extract circle from given boundaries\n");
-  // }
-  // extract_circle.setInputCloud(cloud_boundary);
-  // extract_circle.setIndices(inliers_circle);
-  // extract_circle.setNegative(false);
-  // PointCloudT::Ptr cloud_circle (new PointCloudT);  // Plane point cloud
-  // extract_circle.filter(*cloud_circle);
-  std::cout << "Applied "<<std::to_string(iterations) << " circle ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
-  std::cout << "Circle size:  "<<std::to_string(inliers_circle->indices.size()) <<"" << std::endl;
-
-  double percentage = double(inliers_circle->indices.size())/cloud_boundary->size();
-
-  std::cout<<"circle percentage: "<<percentage<<"\n";
-  std::cout<<"circle radius: "<<coefficients_circle->values[3]<<"\n";
-  return percentage;
-}
-
-void calc_boundary(const PointCloudT::Ptr cloud_p, PointCloudT::Ptr cloud_boundary, double radius_search_small, double radius_search_large, double angle_threshold)
-{
-  // Boundary
-  pcl::PointCloud<pcl::Boundary> boundaries; 
-  pcl::BoundaryEstimation<PointT, PointNT, pcl::Boundary> boundEst; 
-  pcl::NormalEstimation<PointT, PointNT> normEst; 
-  PointCloudNT::Ptr normals(new PointCloudNT); 
-  normEst.setInputCloud(cloud_p); 
-  normEst.setRadiusSearch(radius_search_small); 
-  pcl_timer.tic();
-  normEst.compute(*normals); 
-  std::cout << "Calculated normals in " << pcl_timer.toc () << " ms" << std::endl;
- 
-  boundEst.setInputCloud(cloud_p);
-  boundEst.setInputNormals(normals);
-  boundEst.setRadiusSearch(radius_search_large); 
-  boundEst.setAngleThreshold(M_PI/angle_threshold); 
-  boundEst.setSearchMethod(pcl::search::KdTree<PointT>::Ptr (new pcl::search::KdTree<PointT>)); 
-  pcl_timer.tic();
-  boundEst.compute(boundaries); 
-  std::cout << "Calculated boundaries in " << pcl_timer.toc () << " ms" << std::endl;
- 
-  for(int i = 0; i < cloud_p->points.size(); i++) 
-  {
-    if(boundaries[i].boundary_point > 0) 
-    { 
-      cloud_boundary->push_back(cloud_p->points[i]); 
-    }
-  }
-}
-
-double calc_plane(const PointCloudT::Ptr cloud_in, PointCloudT::Ptr cloud_p,double z_min,double z_max)
-{
-  double percentage = 0;
-  PointCloudT::Ptr cloud_filtered (new PointCloudT);
-  pcl::ConditionAnd<PointT>::Ptr range_cond(new pcl::ConditionAnd<PointT> ());
-  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::GT,z_min)));
-  range_cond->addComparison(pcl::FieldComparison<PointT>::ConstPtr (new pcl::FieldComparison<PointT>("z",pcl::ComparisonOps::LT,z_max)));
-  pcl::ConditionalRemoval<PointT> condrem;
-  condrem.setCondition(range_cond);
-  condrem.setInputCloud(cloud_in);
-  condrem.setKeepOrganized(false);
-  condrem.filter(*cloud_filtered);
-
-  // Create the segmentation object
-  pcl::SACSegmentation<PointT> seg;
-  // Optional
-  seg.setOptimizeCoefficients (true);
-  // Mandatory
-  seg.setModelType (pcl::SACMODEL_PLANE);
-  seg.setMethodType (pcl::SAC_RANSAC);
-  seg.setDistanceThreshold (0.01);
-  // seg.setRadiusLimits(14, 16);
-  seg.setMaxIterations (iterations);
-
-  pcl::ExtractIndices<PointT> extract;
-  seg.setInputCloud (cloud_filtered);
-  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-  
-  pcl_timer.tic ();
-  seg.segment (*inliers, *coefficients);
-  if (inliers->indices.size() == 0 )
-  {
-    return percentage;
-  }
-  extract.setInputCloud(cloud_filtered);
-  extract.setIndices(inliers);
-  extract.setNegative(false);
-  
-  extract.filter(*cloud_p);
-  std::cout << "Applied "<<std::to_string(iterations) << " plane ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
-  std::cout << "Plane size:  "<<std::to_string(inliers->indices.size()) <<"" << std::endl;
-
-  percentage = double(inliers->indices.size())/cloud_filtered->size();
-  return percentage;
 }
