@@ -211,7 +211,7 @@ main (int argc,
     std::string iterations_cnt = "RANSAC iterations = " + ss.str ();
     viewer.addText (iterations_cnt, 10, 50, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "iterations_cnt");
     viewer.addText ("target ball radius: " + std::to_string(coefficients->values[3])+"\n", 10, 70, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "radius");
-    // viewer.addText ("Percentage of inliers: " + std::to_string(percentage) + "\n", 10, 90, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "inliers percentage");
+    viewer.addText ("Percentage of inliers: " + std::to_string(percentage) + "\n", 10, 90, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "inliers percentage");
   
     // Set background color
     viewer.setBackgroundColor (bckgr_gray_level, bckgr_gray_level, bckgr_gray_level);

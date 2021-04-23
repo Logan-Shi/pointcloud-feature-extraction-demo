@@ -8,8 +8,8 @@ pcl::console::TicToc pcl_timer;
 int iterations = 1;
 double diameter = 4;
 double buffer = 0.5;
-double z_min = -500;
-double z_max = 500;
+double plane_th = 0.01;
+double crop_size = 50;
 double threshold = 0.01;
 double radius_search_small = 0.5;
 double radius_search_large = 0.5;
@@ -52,8 +52,8 @@ int main (int argc, char* argv[])
     iterations = atoi(argv[2]);
     diameter = std::stod(argv[3]);
     buffer = std::stod(argv[4]);
-    z_min = std::stod(argv[5]);
-    z_max = std::stod(argv[6]);
+    plane_th = std::stod(argv[5]);
+    crop_size = std::stod(argv[6]);
     threshold = std::stod(argv[7]);
     radius_search_small = std::stod(argv[8]);
     radius_search_large = std::stod(argv[9]);
@@ -61,8 +61,8 @@ int main (int argc, char* argv[])
     std::cout<<"iterations: "<<iterations<<"\n";
     std::cout<<"diameter: "<<diameter<<"\n";
     std::cout<<"buffer: "<<buffer<<"\n";
-    std::cout<<"z_min: "<<z_min<<"\n";
-    std::cout<<"z_max: "<<z_max<<"\n";
+    std::cout<<"plane_th: "<<plane_th<<"\n";
+    std::cout<<"crop_size: "<<crop_size<<"\n";
     std::cout<<"threshold: "<<threshold<<"\n";
     std::cout<<"radius_search_small: "<<radius_search_small<<"\n";
     std::cout<<"radius_search_large: "<<radius_search_large<<"\n";
@@ -75,19 +75,27 @@ int main (int argc, char* argv[])
   }
   // ---------------------------------------------------------------------------------------------------------
   PointCloudT::Ptr cloud_p (new PointCloudT);
-  calc_plane(cloud_in, cloud_p, z_min, z_max,iterations);
+  pcl_timer.tic ();
+  PointCloudNT::Ptr normals(new PointCloudNT); 
+  calc_plane(cloud_in, cloud_p, plane_th, crop_size,iterations, normals);
+  std::cout << "Plane ransaced in "<< pcl_timer.toc () << " ms" << std::endl;
 
   PointCloudT::Ptr cloud_boundary (new PointCloudT);
-  calc_boundary(cloud_p, cloud_boundary, radius_search_small,radius_search_large,angle_threshold);
+  pcl_timer.tic ();
+  calc_boundary(cloud_p, cloud_boundary, normals, radius_search_small,radius_search_large,angle_threshold);
+  std::cout << "Boundary extracted in "<< pcl_timer.toc () << " ms" << std::endl;
 
   double percentage = 0;
+  pcl_timer.tic ();
   pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
-  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 4, buffer, threshold,iterations);
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, diameter, buffer, threshold,iterations);
   std::cout<<"percentage: "<<percentage<<"\n";
   percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 9, buffer, threshold,iterations);
   std::cout<<"percentage: "<<percentage<<"\n";
   percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 26, buffer, threshold,iterations);
   std::cout<<"percentage: "<<percentage<<"\n";
+  std::cout << "circle extracted in "<< pcl_timer.toc () << " ms" << std::endl;
+
   // ---------------------------------------------------------------------------------------------------------
   // The color we will be using
   float bckgr_gray_level = 0.0;  // Black
@@ -126,11 +134,12 @@ int main (int argc, char* argv[])
   // ss << iterations;
   // std::string iterations_cnt = "RANSAC iterations = " + ss.str ();
   // viewer.addText (iterations_cnt, 10, 50, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "iterations_cnt");
-  viewer.addText ("target ball radius: " + std::to_string(coefficients_circle->values[3])+"\n", 10, 70, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "radius");
+  viewer.addText ("hole radius: " + std::to_string(coefficients_circle->values[3])+"\n", 10, 70, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "radius");
   // viewer.addText ("Percentage of inliers: " + std::to_string(percentage) + "\n", 10, 90, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "inliers percentage");
 
   viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud_boundary");
   viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY,0.5,"cloud_in");
+  
   // Set background color
   viewer.setBackgroundColor (bckgr_gray_level, bckgr_gray_level, bckgr_gray_level);
 
