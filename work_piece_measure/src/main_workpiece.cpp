@@ -76,24 +76,23 @@ int main (int argc, char* argv[])
   // ---------------------------------------------------------------------------------------------------------
   PointCloudT::Ptr cloud_p (new PointCloudT);
   pcl_timer.tic ();
-  PointCloudNT::Ptr normals(new PointCloudNT); 
-  calc_plane(cloud_in, cloud_p, plane_th, crop_size,iterations, normals);
+  calc_plane(cloud_in, cloud_p, plane_th, crop_size,iterations);
   std::cout << "Plane ransaced in "<< pcl_timer.toc () << " ms" << std::endl;
 
   PointCloudT::Ptr cloud_boundary (new PointCloudT);
   pcl_timer.tic ();
-  calc_boundary(cloud_p, cloud_boundary, normals, radius_search_small,radius_search_large,angle_threshold);
+  calc_boundary(cloud_p, cloud_boundary, radius_search_small,radius_search_large,angle_threshold);
   std::cout << "Boundary extracted in "<< pcl_timer.toc () << " ms" << std::endl;
 
   double percentage = 0;
   pcl_timer.tic ();
   pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
-  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, diameter, buffer, threshold,iterations);
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 15, buffer, threshold,iterations);
   std::cout<<"percentage: "<<percentage<<"\n";
-  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 9, buffer, threshold,iterations);
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 20, buffer, threshold,iterations);
   std::cout<<"percentage: "<<percentage<<"\n";
-  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 26, buffer, threshold,iterations);
-  std::cout<<"percentage: "<<percentage<<"\n";
+  // percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 26, buffer, threshold,iterations);
+  // std::cout<<"percentage: "<<percentage<<"\n";
   std::cout << "circle extracted in "<< pcl_timer.toc () << " ms" << std::endl;
 
   // ---------------------------------------------------------------------------------------------------------
