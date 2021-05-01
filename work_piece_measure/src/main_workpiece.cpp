@@ -87,12 +87,12 @@ int main (int argc, char* argv[])
   double percentage = 0;
   pcl_timer.tic ();
   pcl::ModelCoefficients::Ptr coefficients_circle (new pcl::ModelCoefficients);
-  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 15, buffer, threshold,iterations);
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 4, buffer, threshold,iterations);
   std::cout<<"percentage: "<<percentage<<"\n";
-  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 20, buffer, threshold,iterations);
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 9, buffer, threshold,iterations);
   std::cout<<"percentage: "<<percentage<<"\n";
-  // percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 26, buffer, threshold,iterations);
-  // std::cout<<"percentage: "<<percentage<<"\n";
+  percentage = calc_circle(cloud_boundary, coefficients_circle, percentage, 26, buffer, threshold,iterations);
+  std::cout<<"percentage: "<<percentage<<"\n";
   std::cout << "circle extracted in "<< pcl_timer.toc () << " ms" << std::endl;
 
   // ---------------------------------------------------------------------------------------------------------
