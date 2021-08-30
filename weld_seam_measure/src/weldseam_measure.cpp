@@ -114,7 +114,8 @@ double calc_plane(const PointCloudT::Ptr cloud_in, PointCloudT::Ptr cloud_p, pcl
   extract.setIndices(inliers);
   extract.setNegative(true);
   
-  extract.filter(*cloud_p);
+  // extract.filter(*cloud_p);
+  *cloud_p = *cloud_filtered;
   // std::cout << "Applied "<<std::to_string(iterations) << " plane ransac iterations in " << pcl_timer.toc () << " ms" << std::endl;
   std::cout << "Plane size:  "<<std::to_string(inliers->indices.size()) <<"" << std::endl;
 
@@ -130,13 +131,13 @@ PointCloudT::Ptr crop_box(const PointCloudT::Ptr cloud_in, double box_size, doub
                              y_pos,
                              0,
                              0);
-  Eigen::Vector4f box_min(box_center(0) - 5,
-                          box_center(1) - 20,
-                          box_center(2) - box_size,
+  Eigen::Vector4f box_min(box_center(0) - 10*box_size,
+                          box_center(1) - 20*box_size,
+                          box_center(2) - 60*box_size,
                           1.0);
-  Eigen::Vector4f box_max(box_center(0) + 5,
-                          box_center(1) + 20,
-                          box_center(2) + box_size,
+  Eigen::Vector4f box_max(box_center(0) + 10*box_size,
+                          box_center(1) + 20*box_size,
+                          box_center(2) + 60*box_size,
                           1.0);
   box_filter.setMin(box_min);
   box_filter.setMax(box_max);

@@ -80,15 +80,23 @@ int main (int argc, char* argv[])
 
   if (raw_view)
   {
-    PointCloudT::Ptr cloud_filtered (new PointCloudT);
+    PointCloudT::Ptr cloud_downsampled (new PointCloudT);
     pcl::VoxelGrid<PointT> downsampler;
     downsampler.setInputCloud (cloud_in);
     downsampler.setLeafSize (0.1f, 0.1f, 0.1f);
-    downsampler.filter (*cloud_filtered);
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_filtered_color_h (cloud_filtered, 255,255,255);
-    viewer.addPointCloud (cloud_filtered, cloud_filtered_color_h, "cloud_in");
+    downsampler.filter (*cloud_downsampled);
+    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_downsampled_color_h (cloud_downsampled, 255,255,255);
+    viewer.addPointCloud (cloud_downsampled, cloud_downsampled_color_h, "cloud_in");
   }
   else{
+    PointCloudT::Ptr cloud_downsampled (new PointCloudT);
+    pcl::VoxelGrid<PointT> downsampler;
+    downsampler.setInputCloud (cloud_in);
+    downsampler.setLeafSize (0.5f, 0.5f, 0.5f);
+    downsampler.filter (*cloud_downsampled);
+    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_downsampled_color_h (cloud_downsampled, 255,255,255);
+    viewer.addPointCloud (cloud_downsampled, cloud_downsampled_color_h, "cloud_in");
+
     PointCloudT::Ptr cloud_p (new PointCloudT);
     PointCloudT::Ptr cloud_filtered (new PointCloudT);
     pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
@@ -104,33 +112,41 @@ int main (int argc, char* argv[])
     sorfilter.filter (*cloud_filtered);
     // The resulting cloud_out contains all points of cloud_in that have an average distance to their 8 nearest neighbors that is below the computed threshold
     // Using a standard deviation multiplier of 1.0 and assuming the average distances are normally distributed there is a 84.1% chance that a point will be an inlier
-    std::cout << "plane params: \n";
-    std::cout << coefficients->values[0]<< ", " << coefficients->values[1] << ", " << coefficients->values[2]<<", " << coefficients->values[3]<<"\n";
+
+    // Eigen::Vector4f centroid;
+    // pcl::compute3DCentroid(*cloud_filtered, centroid);
+    // std::cout<<"centroid coordinate: \n";
+    results.open("result/test.txt", std::ios_base::app);
+    results << "plane params: \n";
+    results << coefficients->values[0]<< ", " << coefficients->values[1] << ", " << coefficients->values[2]<<", " << coefficients->values[3]<<"\n";
+    for (int i = 0; i < cloud_filtered->size(); ++i)
+    {
+      PointCloudT::Ptr centroid (new PointCloudT);
+      centroid->points.push_back(cloud_filtered->points[i]);
+      results << centroid->points[0].x<< ", " << centroid->points[0].y << ", " << centroid->points[0].z<<", ";
+      double distance = 0;
+      distance = coefficients->values[0]*centroid->points[0].x+
+                 coefficients->values[1]*centroid->points[0].y+
+                 coefficients->values[2]*centroid->points[0].z+
+                 coefficients->values[3];
+      results <<distance<<"\n";
+    }
+    results.close();
     
-    Eigen::Vector4f centroid;
-    pcl::compute3DCentroid(*cloud_filtered, centroid);
-    std::cout<<"centroid coordinate: \n";
-    std::cout << centroid[0]<< ", " << centroid[1] << ", " << centroid[2]<<", " << centroid[3]<<"\n";
-    double distance = 0;
-    distance = coefficients->values[0]*centroid[0]+
-               coefficients->values[1]*centroid[1]+
-               coefficients->values[2]*centroid[2]+
-               coefficients->values[3]*centroid[3];
-    std::cout << "distance is "<<distance<<"\n";
     // ---------------------------------------------------------------------------------------------------------
     // Original point cloud is white
     pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_filtered_color_h (cloud_filtered, 180,20,20);
     viewer.addPointCloud (cloud_filtered, cloud_filtered_color_h, "cloud_filtered");
 
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_p_color_h (cloud_p, 255,255,255);
-    viewer.addPointCloud (cloud_p, cloud_p_color_h, "cloud_p");
+    // pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_p_color_h (cloud_p, 255,255,255);
+    // viewer.addPointCloud (cloud_p, cloud_p_color_h, "cloud_p");
 
     // pcl::visualization::PointCloudColorHandlerCustom<PointT> cloud_boundary_color_h (cloud_boundary, 20,180,20);
     // viewer.addPointCloud (cloud_boundary, cloud_boundary_color_h, "cloud_boundary");
 
     // Adding text descriptions in each viewport
-    viewer.addText ("White: Original point cloud\nRed: Ransac Plane result\nGreen: Boundary result", 10, 10, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "ransac_info");
-
+    viewer.addText ("White: Original point cloud\nRed: Extracted seam\n", 10, 10, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "ransac_info");
+    // viewer.addText ("Average distance: " + std::to_string(distance) + "\n", 10, 90, 16, txt_gray_lvl, txt_gray_lvl, txt_gray_lvl, "seam_info");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud_filtered");
     // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY,0.5,"cloud_in");
 
